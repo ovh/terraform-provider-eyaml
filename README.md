@@ -2,6 +2,10 @@
 
 Terraform provider for manipulating encrypted data using [eyaml](https://github.com/voxpupuli/hiera-eyaml). It initially aimed to encrypt data for puppet.
 
+## Supported encryption methods
+
+This provider only supports PKCS7 as encryption method.
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
