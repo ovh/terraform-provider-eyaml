@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/terraform-plugin-framework v1.3.5
 	github.com/hashicorp/terraform-plugin-go v0.18.0
 	github.com/hashicorp/terraform-plugin-testing v1.5.1
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
+	go.mozilla.org/pkcs7 v0.9.0
 )
 
 require (
