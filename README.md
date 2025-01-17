@@ -8,7 +8,7 @@ This provider only supports PKCS7 as encryption method.
 
 ## Requirements
 
-- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
+- [Terraform](https://www.terraform.io/downloads.html) >= 1.9
 - [Go](https://golang.org/doc/install) >= 1.20
 
 ## Building The Provider
