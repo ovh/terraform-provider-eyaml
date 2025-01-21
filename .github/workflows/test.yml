@@ -59,12 +59,10 @@ jobs:
       fail-fast: false
       matrix:
         # list whatever Terraform versions here you would like to support
+        # As per: https://endoflife.date/terraform
         terraform:
-          - "1.0.*"
-          - "1.1.*"
-          - "1.2.*"
-          - "1.3.*"
-          - "1.4.*"
+          - "1.9.*"
+          - "1.10.*"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-go@v5
