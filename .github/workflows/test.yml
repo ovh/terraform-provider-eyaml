@@ -63,6 +63,10 @@ jobs:
         terraform:
           - "1.9.*"
           - "1.10.*"
+          - "1.11.*"
+          - "1.12.*"
+          - "1.13.*"
+          - "1.14.*"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - uses: actions/setup-go@v6
