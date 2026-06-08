@@ -61,12 +61,11 @@ jobs:
         # list whatever Terraform versions here you would like to support
         # As per: https://endoflife.date/terraform
         terraform:
-          - "1.9.*"
-          - "1.10.*"
           - "1.11.*"
           - "1.12.*"
           - "1.13.*"
           - "1.14.*"
+          - "1.15.*"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
       - uses: actions/setup-go@v6

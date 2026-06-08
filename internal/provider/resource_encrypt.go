@@ -17,6 +17,7 @@ import (
 
 var _ resource.Resource = &EncryptedDataResource{}
 var _ resource.ResourceWithImportState = &EncryptedDataResource{}
+var _ resource.ResourceWithValidateConfig = &EncryptedDataResource{}
 
 func NewEncryptedDataResource() resource.Resource {
 	return &EncryptedDataResource{}
@@ -28,6 +29,8 @@ type EncryptedDataResource struct {
 type EncryptedDataResourceModel struct {
 	PublicKey     types.String `tfsdk:"public_key"`
 	Data          types.String `tfsdk:"data"`
+	DataWO        types.String `tfsdk:"data_wo"`
+	DataWOVersion types.String `tfsdk:"data_wo_version"`
 	EncryptedData types.String `tfsdk:"encrypted_data"`
 	Id            types.String `tfsdk:"id"`
 }
@@ -49,9 +52,22 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 				},
 			},
 			"data": schema.StringAttribute{
-				MarkdownDescription: "Data to encrypt.",
-				Required:            true,
+				MarkdownDescription: "Data to encrypt. Configure either `data` or the pair `data_wo` and `data_wo_version`.",
+				Optional:            true,
 				Sensitive:           true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"data_wo": schema.StringAttribute{
+				MarkdownDescription: "Write-only data to encrypt. Must be configured together with `data_wo_version` and cannot be combined with `data`.",
+				Optional:            true,
+				Sensitive:           true,
+				WriteOnly:           true,
+			},
+			"data_wo_version": schema.StringAttribute{
+				MarkdownDescription: "Version token for `data_wo`. Change this when `data_wo` changes so Terraform can detect the replacement.",
+				Optional:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -68,6 +84,37 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 	}
 }
 
+func (r *EncryptedDataResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var data EncryptedDataResourceModel
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if data.Data.IsUnknown() || data.DataWO.IsUnknown() || data.DataWOVersion.IsUnknown() {
+		return
+	}
+
+	hasData := !data.Data.IsNull()
+	hasDataWO := !data.DataWO.IsNull()
+	hasDataWOVersion := !data.DataWOVersion.IsNull()
+
+	switch {
+	case hasData && !hasDataWO && !hasDataWOVersion:
+		return
+	case !hasData && hasDataWO && hasDataWOVersion:
+		return
+	case hasData && (hasDataWO || hasDataWOVersion):
+		resp.Diagnostics.AddError("Invalid encryption input configuration", "Configure either `data` or the pair `data_wo` and `data_wo_version`, but not both.")
+	case hasDataWO != hasDataWOVersion:
+		resp.Diagnostics.AddError("Invalid encryption input configuration", "`data_wo` and `data_wo_version` must be configured together.")
+	default:
+		resp.Diagnostics.AddError("Missing encryption input configuration", "Configure either `data` or the pair `data_wo` and `data_wo_version`.")
+	}
+}
+
 func (r *EncryptedDataResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -75,23 +122,32 @@ func (r *EncryptedDataResource) Configure(ctx context.Context, req resource.Conf
 }
 
 func (r *EncryptedDataResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data *EncryptedDataResourceModel
+	var configData *EncryptedDataResourceModel
+	var planData *EncryptedDataResourceModel
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &configData)...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
 
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	encryptedData, err := encrypt(data.Data.ValueString(), strings.TrimSpace(data.PublicKey.ValueString()))
+	plaintext := configData.Data.ValueString()
+	if configData.Data.IsNull() {
+		plaintext = configData.DataWO.ValueString()
+		planData.Data = types.StringNull()
+	}
+	planData.DataWO = types.StringNull()
+
+	encryptedData, err := encrypt(plaintext, strings.TrimSpace(planData.PublicKey.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError("Encryption error", fmt.Sprintf("Unable to encrypt data, got error: %s", err))
 		return
 	}
 
-	data.EncryptedData = types.StringValue(fmt.Sprintf("ENC[PKCS7,%s]", encryptedData))
-	data.Id = types.StringValue(strconv.FormatInt(time.Now().Unix(), 10))
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	planData.EncryptedData = types.StringValue(fmt.Sprintf("ENC[PKCS7,%s]", encryptedData))
+	planData.Id = types.StringValue(strconv.FormatInt(time.Now().Unix(), 10))
+	resp.Diagnostics.Append(resp.State.Set(ctx, &planData)...)
 }
 
 func (r *EncryptedDataResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -112,6 +168,7 @@ func (r *EncryptedDataResource) Update(ctx context.Context, req resource.UpdateR
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	data.DataWO = types.StringNull()
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

@@ -1,6 +1,7 @@
 resource "eyaml_encrypt" "test" {
-  data       = "this-value-will-be-encrypted"
-  public_key = <<EOT
+  data_wo         = "this-value-will-be-encrypted"
+  data_wo_version = "1"
+  public_key      = <<EOT
 -----BEGIN CERTIFICATE-----
 MIIC2TCCAcGgAwIBAgIBATANBgkqhkiG9w0BAQsFADAAMCAXDTIzMDcxOTExMjc1
 N1oYDzIwNzMwNzA2MTEyNzU3WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
