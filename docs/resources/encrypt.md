@@ -14,8 +14,9 @@ This resource encrypt a data using the given public key. This is similar to `eya
 
 ```terraform
 resource "eyaml_encrypt" "test" {
-  data       = "this-value-will-be-encrypted"
-  public_key = <<EOT
+  data_wo         = "this-value-will-be-encrypted"
+  data_wo_version = "1"
+  public_key      = <<EOT
 -----BEGIN CERTIFICATE-----
 MIIC2TCCAcGgAwIBAgIBATANBgkqhkiG9w0BAQsFADAAMCAXDTIzMDcxOTExMjc1
 N1oYDzIwNzMwNzA2MTEyNzU3WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
@@ -44,8 +45,15 @@ EOT
 
 ### Required
 
-- `data` (String, Sensitive) Data to encrypt.
 - `public_key` (String) Public key used for the encryption.
+
+### Optional
+
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
+- `data` (String, Sensitive) Data to encrypt. Configure either `data` or the pair `data_wo` and `data_wo_version`.
+- `data_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only data to encrypt. Must be configured together with `data_wo_version` and cannot be combined with `data`.
+- `data_wo_version` (String) Version token for `data_wo`. Change this when `data_wo` changes so Terraform can detect the replacement.
 
 ### Read-Only
 

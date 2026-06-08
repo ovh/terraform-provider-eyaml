@@ -6,6 +6,31 @@ Terraform provider for manipulating encrypted data using [eyaml](https://github.
 
 This provider only supports PKCS7 as encryption method.
 
+## Encrypt Resource Input Modes
+
+The `eyaml_encrypt` resource now supports two mutually exclusive ways to provide plaintext:
+
+1. `data` for the legacy stateful workflow.
+2. `data_wo` together with `data_wo_version` for a write-only workflow that avoids storing the plaintext in Terraform state.
+
+When using `data_wo`, update `data_wo_version` whenever the plaintext changes so Terraform can detect the replacement.
+
+The `data_wo` attribute uses Terraform write-only schema support, which requires Terraform 1.11 or later. The legacy `data` attribute remains available on older supported Terraform versions.
+
+Example using the write-only workflow:
+
+```terraform
+resource "eyaml_encrypt" "secret" {
+   data_wo         = "this-value-will-be-encrypted"
+   data_wo_version = "1"
+   public_key      = <<EOT
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+EOT
+}
+```
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.9
