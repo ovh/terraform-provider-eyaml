@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,12 +29,13 @@ type EncryptedDataResource struct {
 }
 
 type EncryptedDataResourceModel struct {
-	PublicKey     types.String `tfsdk:"public_key"`
-	Data          types.String `tfsdk:"data"`
-	DataWO        types.String `tfsdk:"data_wo"`
-	DataWOVersion types.String `tfsdk:"data_wo_version"`
-	EncryptedData types.String `tfsdk:"encrypted_data"`
-	Id            types.String `tfsdk:"id"`
+	PublicKey       types.String `tfsdk:"public_key"`
+	Data            types.String `tfsdk:"data"`
+	DataWO          types.String `tfsdk:"data_wo"`
+	DataWOVersion   types.String `tfsdk:"data_wo_version"`
+	DataWOReference types.String `tfsdk:"data_wo_reference"`
+	EncryptedData   types.String `tfsdk:"encrypted_data"`
+	Id              types.String `tfsdk:"id"`
 }
 
 func (r *EncryptedDataResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -71,6 +74,10 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+			},
+			"data_wo_reference": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "SHA256 hash of the value passed in `data` or `data_wo`. Can be used to detect changes to the write-only value.",
 			},
 			"encrypted_data": schema.StringAttribute{
 				Computed:            true,
@@ -115,6 +122,11 @@ func (r *EncryptedDataResource) ValidateConfig(ctx context.Context, req resource
 	}
 }
 
+func dataHash(data string) string {
+	h := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(h[:])
+}
+
 func (r *EncryptedDataResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -146,6 +158,7 @@ func (r *EncryptedDataResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	planData.EncryptedData = types.StringValue(fmt.Sprintf("ENC[PKCS7,%s]", encryptedData))
+	planData.DataWOReference = types.StringValue(dataHash(plaintext))
 	planData.Id = types.StringValue(strconv.FormatInt(time.Now().Unix(), 10))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &planData)...)
 }

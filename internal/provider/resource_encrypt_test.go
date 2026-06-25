@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"regexp"
@@ -26,12 +28,14 @@ func TestAccEncryptedDataResource_data(t *testing.T) {
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_version"),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, firstExpectedValue),
+					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(firstExpectedValue)),
 				),
 			},
 			{
 				Config: testAccEncryptedDataResourceConfig(publicKey, secondExpectedValue),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, secondExpectedValue),
+					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(secondExpectedValue)),
 				),
 			},
 		},
@@ -55,6 +59,7 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, firstExpectedValue),
+					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(firstExpectedValue)),
 				),
 			},
 			{
@@ -68,6 +73,7 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, secondExpectedValue),
+					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(secondExpectedValue)),
 				),
 			},
 		},
@@ -115,6 +121,11 @@ func testAccEncryptedDataResourceKeys(t *testing.T) (string, string) {
 	}
 
 	return string(publicKeyBytes), string(privateKeyBytes)
+}
+
+func testAccDataHash(data string) string {
+	h := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(h[:])
 }
 
 func testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue string) resource.TestCheckFunc {
