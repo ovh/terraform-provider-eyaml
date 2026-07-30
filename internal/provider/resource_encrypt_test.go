@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -80,6 +81,34 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 	})
 }
 
+func TestAccEncryptedDataResource_block(t *testing.T) {
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	expectedValue := "this-value-will-be-encrypted-as-a-block"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceBlockConfig(publicKey, expectedValue, true),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("eyaml_encrypt.test", "block", "true"),
+					resource.TestMatchResourceAttr("eyaml_encrypt.test", "encrypted_data", regexp.MustCompile(`\AENC\[PKCS7,[a-zA-Z0-9+/=]+\n`)),
+					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue),
+				),
+			},
+			{
+				Config: testAccEncryptedDataResourceBlockConfig(publicKey, expectedValue, false),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("eyaml_encrypt.test", "block", "false"),
+					resource.TestMatchResourceAttr("eyaml_encrypt.test", "encrypted_data", regexp.MustCompile(`\AENC\[PKCS7,[a-zA-Z0-9+/=]+\]\z`)),
+					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue),
+				),
+			},
+		},
+	})
+}
+
 func TestAccEncryptedDataResource_invalidConfig(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 
@@ -130,8 +159,8 @@ func testAccDataHash(data string) string {
 
 func testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue string) resource.TestCheckFunc {
 	return resource.TestCheckResourceAttrWith("eyaml_encrypt.test", "encrypted_data", func(v string) error {
-		re := regexp.MustCompile(`ENC\[PKCS7,(.+)\]`)
-		matches := re.FindStringSubmatch(v)
+		re := regexp.MustCompile(`\AENC\[PKCS7,(.+)\]\z`)
+		matches := re.FindStringSubmatch(strings.Join(strings.Fields(v), ""))
 		if len(matches) != 2 {
 			return fmt.Errorf("expected encrypted value to be in format ENC[PKCS7,..], got %s", v)
 		}
@@ -163,6 +192,17 @@ resource "eyaml_encrypt" "test" {
 %sEOT
 }
 `, data, publicKey)
+}
+
+func testAccEncryptedDataResourceBlockConfig(publicKey, data string, block bool) string {
+	return fmt.Sprintf(`
+resource "eyaml_encrypt" "test" {
+	data       = "%s"
+	block      = %t
+	public_key = <<EOT
+%sEOT
+}
+`, data, block, publicKey)
 }
 
 func testAccEncryptedDataResourceWriteOnlyConfig(publicKey, dataWO, dataWOVersion string) string {

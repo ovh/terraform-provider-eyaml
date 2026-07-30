@@ -34,6 +34,31 @@ func TestAccDecryptFunction(t *testing.T) {
 	})
 }
 
+func TestAccDecryptFunction_block(t *testing.T) {
+	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey := string(publicKeyBytes)
+	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateKey := string(privateKeyBytes)
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDecryptFunctionBlockConfig(privateKey, publicKey),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckOutput("decrypted", "this-value-will-be-encrypted"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccDecryptFunction_InvalidEnvelope(t *testing.T) {
 	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
 	if err != nil {
@@ -89,4 +114,28 @@ EOT
   )
 }
 `, privateKey, publicKey)
+}
+
+func testAccDecryptFunctionBlockConfig(privateKey, publicKey string) string {
+	return fmt.Sprintf(`
+resource "eyaml_encrypt" "test" {
+  data       = "this-value-will-be-encrypted"
+  block      = true
+  public_key = <<EOT
+%sEOT
+}
+
+output "decrypted" {
+  value = provider::eyaml::decrypt(
+    <<EOT
+%s
+EOT
+    ,
+    <<EOT
+%sEOT
+    ,
+    eyaml_encrypt.test.encrypted_data
+  )
+}
+`, publicKey, privateKey, publicKey)
 }
