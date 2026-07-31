@@ -51,6 +51,7 @@ EOT
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
+- `block` (Boolean) Wrap `encrypted_data` on several lines instead of a single one, as `eyaml encrypt -o block` does.
 - `data` (String, Sensitive) Data to encrypt. Configure either `data` or the pair `data_wo` and `data_wo_version`.
 - `data_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only data to encrypt. Must be configured together with `data_wo_version` and cannot be combined with `data`.
 - `data_wo_version` (String) Version token for `data_wo`. Change this when `data_wo` changes so Terraform can detect the replacement.

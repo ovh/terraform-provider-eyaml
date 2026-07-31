@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -34,6 +35,7 @@ type EncryptedDataResourceModel struct {
 	DataWO          types.String `tfsdk:"data_wo"`
 	DataWOVersion   types.String `tfsdk:"data_wo_version"`
 	DataWOReference types.String `tfsdk:"data_wo_reference"`
+	Block           types.Bool   `tfsdk:"block"`
 	EncryptedData   types.String `tfsdk:"encrypted_data"`
 	Id              types.String `tfsdk:"id"`
 }
@@ -78,6 +80,19 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 			"data_wo_reference": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "SHA256 hash of the value passed in `data` or `data_wo`. Can be used to detect changes to the write-only value.",
+			},
+			"block": schema.BoolAttribute{
+				MarkdownDescription: "Wrap `encrypted_data` on several lines instead of a single one, as `eyaml encrypt -o block` does.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplaceIf(
+						func(ctx context.Context, req planmodifier.BoolRequest, resp *boolplanmodifier.RequiresReplaceIfFuncResponse) {
+							resp.RequiresReplace = req.StateValue.ValueBool() != req.ConfigValue.ValueBool()
+						},
+						"Requires replace when the block formatting changes.",
+						"Requires replace when the block formatting changes.",
+					),
+				},
 			},
 			"encrypted_data": schema.StringAttribute{
 				Computed:            true,
@@ -157,7 +172,7 @@ func (r *EncryptedDataResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	planData.EncryptedData = types.StringValue(fmt.Sprintf("ENC[PKCS7,%s]", encryptedData))
+	planData.EncryptedData = types.StringValue(formatEncryptedData(encryptedData, planData.Block.ValueBool()))
 	planData.DataWOReference = types.StringValue(dataHash(plaintext))
 	planData.Id = types.StringValue(strconv.FormatInt(time.Now().Unix(), 10))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &planData)...)

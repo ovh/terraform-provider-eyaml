@@ -113,6 +113,8 @@ func decrypt(value, privateKeyRaw, publicKey string) (string, error) {
 }
 
 func stripEyamlEnvelope(data string) (string, error) {
+	data = strings.Join(strings.Fields(data), "")
+
 	if !strings.HasPrefix(data, "ENC[PKCS7,") {
 		return "", fmt.Errorf("data does not appear to start with an encryption envelope")
 	}
@@ -125,4 +127,21 @@ func stripEyamlEnvelope(data string) (string, error) {
 	data = strings.TrimSuffix(data, "]")
 
 	return data, nil
+}
+
+// Width used by hiera-eyaml to chunk the envelope.
+const eyamlBlockWidth = 60
+
+func formatEncryptedData(ciphertext string, block bool) string {
+	envelope := fmt.Sprintf("ENC[PKCS7,%s]", ciphertext)
+	if !block {
+		return envelope
+	}
+
+	lines := []string{}
+	for len(envelope) > eyamlBlockWidth {
+		lines = append(lines, envelope[:eyamlBlockWidth])
+		envelope = envelope[eyamlBlockWidth:]
+	}
+	return strings.Join(append(lines, envelope), "\n")
 }
