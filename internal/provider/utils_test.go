@@ -90,6 +90,7 @@ func TestDecryption_invalidKeys(t *testing.T) {
 		"invalid private key": {"not-a-pem", publicKey, "private_key: invalid PEM block"},
 		"invalid public key":  {privateKey, "not-a-pem", "public_key: invalid PEM block"},
 		"non-RSA private key": {testPKCS8PEM(t, ed25519Key), publicKey, "private_key: not an RSA key"},
+		"empty certificate":   {privateKey, testEmptyCertificatePEM, "public_key: no certificate found"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := decrypt("", strings.TrimSpace(tc.privateKey), strings.TrimSpace(tc.publicKey))
@@ -97,5 +98,14 @@ func TestDecryption_invalidKeys(t *testing.T) {
 				t.Fatalf("expected error %q, got: %v", tc.want, err)
 			}
 		})
+	}
+}
+
+const testEmptyCertificatePEM = "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n"
+
+func TestEncryption_emptyCertificate(t *testing.T) {
+	_, err := encrypt("this-value-will-not-be-encrypted", testEmptyCertificatePEM)
+	if want := "public_key: no certificate found"; err == nil || err.Error() != want {
+		t.Fatalf("expected error %q, got: %v", want, err)
 	}
 }

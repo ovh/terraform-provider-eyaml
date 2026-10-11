@@ -82,6 +82,21 @@ func TestAccDecryptFunction_InvalidEnvelope(t *testing.T) {
 	})
 }
 
+func TestAccDecryptFunction_emptyCertificate(t *testing.T) {
+	_, privateKey := testAccEncryptedDataResourceKeys(t)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccDecryptFunctionConfig(privateKey, testEmptyCertificatePEM),
+				ExpectError: regexp.MustCompile(`public_key: no certificate found`),
+			},
+		},
+	})
+}
+
 func testAccDecryptFunctionConfig(privateKey, publicKey string) string {
 	return fmt.Sprintf(`
 output "decrypted" {

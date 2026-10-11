@@ -29,6 +29,9 @@ func getKeyCertificates(key string) ([]*x509.Certificate, error) {
 	if err != nil {
 		return certificates, err
 	}
+	if len(certificates) == 0 {
+		return certificates, errors.New("no certificate found")
+	}
 	return certificates, nil
 }
 
