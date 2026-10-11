@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/statecheck"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
@@ -40,6 +41,11 @@ func TestAccEncryptedDataResource_data(t *testing.T) {
 			},
 			{
 				Config: testAccEncryptedDataResourceConfig(publicKey, secondExpectedValue),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, secondExpectedValue),
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(secondExpectedValue)),
@@ -75,6 +81,11 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 			},
 			{
 				Config: testAccEncryptedDataResourceWriteOnlyConfig(publicKey, secondExpectedValue, "2"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_version", "2"),
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
@@ -105,11 +116,41 @@ func TestAccEncryptedDataResource_block(t *testing.T) {
 			},
 			{
 				Config: testAccEncryptedDataResourceBlockConfig(publicKey, expectedValue, false),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "block", "false"),
 					resource.TestMatchResourceAttr("eyaml_encrypt.test", "encrypted_data", regexp.MustCompile(`\AENC\[PKCS7,[a-zA-Z0-9+/=]+\]\z`)),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue),
 				),
+			},
+		},
+	})
+}
+
+func TestAccEncryptedDataResource_publicKeyRotation(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	newPublicKey, newPrivateKey := testGenerateKeyPair(t)
+	expectedValue := "this-value-will-be-encrypted-with-a-new-key"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+			},
+			{
+				Config: testAccEncryptedDataResourceConfig(newPublicKey, expectedValue),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
+				Check: testAccEncryptedDataResourceCheckEncryptedValue(newPrivateKey, newPublicKey, expectedValue),
 			},
 		},
 	})
