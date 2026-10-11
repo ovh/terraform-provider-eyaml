@@ -37,6 +37,20 @@ EOT
 
 The `eyaml_encrypt` resource does not support `terraform import`, because it has no remote object to import. To manage an existing value, declare the resource. Terraform then encrypts the value again.
 
+## Decrypt Without Storing The Result
+
+The `eyaml_decrypt` data source and the `provider::eyaml::decrypt` function store the decrypted value in Terraform state when you assign it to a resource attribute or an output. To keep the value out of the plan and the state, use the `eyaml_decrypt` ephemeral resource. Ephemeral resources require Terraform 1.10 or later.
+
+```terraform
+ephemeral "eyaml_decrypt" "db_password" {
+  private_key = file("${path.module}/keys/private_key.pkcs7.pem")
+  public_key  = file("${path.module}/keys/public_key.pkcs7.pem")
+  data        = yamldecode(file("${path.module}/common.eyaml"))["db_password"]
+}
+```
+
+You can pass `ephemeral.eyaml_decrypt.db_password.decrypted_data` to a write-only argument or to a provider configuration.
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.9

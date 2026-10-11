@@ -35,7 +35,7 @@ func (d *DecryptDataSource) Metadata(ctx context.Context, req datasource.Metadat
 
 func (d *DecryptDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This data source decrypt a data using the given private and public key. This is similar to `eyaml decrypt` command line.",
+		MarkdownDescription: "This data source decrypt a data using the given private and public key. This is similar to `eyaml decrypt` command line. The decrypted data is stored in the Terraform state. To keep it out of the state, use the `eyaml_decrypt` ephemeral resource instead.",
 
 		Attributes: map[string]schema.Attribute{
 			"private_key": schema.StringAttribute{

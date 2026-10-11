@@ -3,12 +3,12 @@
 page_title: "eyaml_decrypt Data Source - terraform-provider-eyaml"
 subcategory: ""
 description: |-
-  This data source decrypt a data using the given private and public key. This is similar to eyaml decrypt command line.
+  This data source decrypt a data using the given private and public key. This is similar to eyaml decrypt command line. The decrypted data is stored in the Terraform state. To keep it out of the state, use the eyaml_decrypt ephemeral resource instead.
 ---
 
 # eyaml_decrypt (Data Source)
 
-This data source decrypt a data using the given private and public key. This is similar to `eyaml decrypt` command line.
+This data source decrypt a data using the given private and public key. This is similar to `eyaml decrypt` command line. The decrypted data is stored in the Terraform state. To keep it out of the state, use the `eyaml_decrypt` ephemeral resource instead.
 
 ## Example Usage
 

@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -16,6 +17,7 @@ import (
 // Ensure EncryptEyamlProvider satisfies various provider interfaces.
 var _ provider.Provider = &EncryptEyamlProvider{}
 var _ provider.ProviderWithFunctions = &EncryptEyamlProvider{}
+var _ provider.ProviderWithEphemeralResources = &EncryptEyamlProvider{}
 
 // EncryptEyamlProvider defines the provider implementation.
 type EncryptEyamlProvider struct {
@@ -55,6 +57,12 @@ func (p *EncryptEyamlProvider) Resources(ctx context.Context) []func() resource.
 func (p *EncryptEyamlProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewDecryptDataSource,
+	}
+}
+
+func (p *EncryptEyamlProvider) EphemeralResources(ctx context.Context) []func() ephemeral.EphemeralResource {
+	return []func() ephemeral.EphemeralResource{
+		NewDecryptEphemeralResource,
 	}
 }
 
