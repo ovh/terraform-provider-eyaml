@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -128,4 +129,11 @@ func testGenerateKeyPair(t *testing.T) (publicKey, privateKey string) {
 	publicKey = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
 	privateKey = string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
 	return publicKey, privateKey
+}
+
+var hclTemplateEscaper = strings.NewReplacer("${", "$${", "%{", "%%{")
+
+// shortcut: strconv.Quote emits \a, \x.. for control characters, which HCL rejects; extend if a test needs them.
+func testAccHCLString(s string) string {
+	return hclTemplateEscaper.Replace(strconv.Quote(s))
 }

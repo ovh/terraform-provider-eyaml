@@ -34,7 +34,7 @@ func TestAccDecryptEphemeralResource(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactoriesWithEcho,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDecryptEphemeralResourceConfig(privateKey, publicKey, fmt.Sprintf("%q", expectedValue)),
+				Config: testAccDecryptEphemeralResourceConfig(privateKey, publicKey, expectedValue),
 				ConfigStateChecks: []statecheck.StateCheck{
 					statecheck.ExpectKnownValue("echo.test", tfjsonpath.New("data"), knownvalue.StringExact(expectedValue)),
 				},
@@ -66,15 +66,12 @@ func testAccDecryptEphemeralResourceConfig(privateKey, publicKey, data string) s
 resource "eyaml_encrypt" "test" {
 	data       = %[3]s
 	block      = true
-	public_key = <<EOT
-%[2]sEOT
+	public_key = %[2]s
 }
 
 ephemeral "eyaml_decrypt" "test" {
-	private_key = <<EOT
-%[1]sEOT
-	public_key = <<EOT
-%[2]sEOT
+	private_key = %[1]s
+	public_key = %[2]s
 	data = eyaml_encrypt.test.encrypted_data
 }
 
@@ -83,16 +80,14 @@ provider "echo" {
 }
 
 resource "echo" "test" {}
-`, privateKey, publicKey, data)
+`, testAccHCLString(privateKey), testAccHCLString(publicKey), testAccHCLString(data))
 }
 
 func testAccDecryptEphemeralResourceInvalidEnvelopeConfig(privateKey, publicKey string) string {
 	return fmt.Sprintf(`
 ephemeral "eyaml_decrypt" "test" {
-	private_key = <<EOT
-%[1]sEOT
-	public_key = <<EOT
-%[2]sEOT
+	private_key = %[1]s
+	public_key = %[2]s
 	data = "not-an-encrypted-value"
 }
 
@@ -101,5 +96,5 @@ provider "echo" {
 }
 
 resource "echo" "test" {}
-`, privateKey, publicKey)
+`, testAccHCLString(privateKey), testAccHCLString(publicKey))
 }

@@ -133,6 +133,22 @@ func TestAccEncryptedDataResource_dataWOReferenceUpgrade(t *testing.T) {
 	})
 }
 
+func TestAccEncryptedDataResource_specialCharacters(t *testing.T) {
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	expectedValue := "line one\n\"quoted\" \\ ${not_interpolated} %{ok}\nunicode: été 日本\n"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+				Check:  testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue),
+			},
+		},
+	})
+}
+
 func TestAccEncryptedDataResource_block(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 	expectedValue := "this-value-will-be-encrypted-as-a-block"
@@ -323,72 +339,65 @@ func testAccEncryptedDataResourceCheckWriteOnlyNotPersisted() resource.TestCheck
 func testAccEncryptedDataResourceConfig(publicKey, data string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data      = "%s"
-	public_key = <<EOT
-%sEOT
+	data       = %[2]s
+	public_key = %[1]s
 }
-`, data, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(data))
 }
 
 func testAccEncryptedDataResourceBlockConfig(publicKey, data string, block bool) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data       = "%s"
-	block      = %t
-	public_key = <<EOT
-%sEOT
+	data       = %[2]s
+	block      = %[3]t
+	public_key = %[1]s
 }
-`, data, block, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(data), block)
 }
 
 func testAccEncryptedDataResourceWriteOnlyConfig(publicKey, dataWO, dataWOVersion string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data_wo         = "%s"
-	data_wo_version = "%s"
-	public_key      = <<EOT
-%sEOT
+	data_wo         = %[2]s
+	data_wo_version = %[3]s
+	public_key      = %[1]s
 }
-`, dataWO, dataWOVersion, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(dataWO), testAccHCLString(dataWOVersion))
 }
 
 func testAccEncryptedDataResourceWriteOnlyOnlyDataConfig(publicKey, dataWO string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data_wo    = "%s"
-	public_key = <<EOT
-%sEOT
+	data_wo    = %[2]s
+	public_key = %[1]s
 }
-`, dataWO, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(dataWO))
 }
 
 func testAccEncryptedDataResourceWriteOnlyOnlyVersionConfig(publicKey, dataWOVersion string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data_wo_version = "%s"
-	public_key      = <<EOT
-%sEOT
+	data_wo_version = %[2]s
+	public_key      = %[1]s
 }
-`, dataWOVersion, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(dataWOVersion))
 }
 
 func testAccEncryptedDataResourceMixedInputConfig(publicKey, data, dataWO, dataWOVersion string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data            = "%s"
-	data_wo         = "%s"
-	data_wo_version = "%s"
-	public_key      = <<EOT
-%sEOT
+	data            = %[2]s
+	data_wo         = %[3]s
+	data_wo_version = %[4]s
+	public_key      = %[1]s
 }
-`, data, dataWO, dataWOVersion, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(data), testAccHCLString(dataWO), testAccHCLString(dataWOVersion))
 }
 
 func testAccEncryptedDataResourceMissingInputConfig(publicKey string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	public_key = <<EOT
-%sEOT
+	public_key = %[1]s
 }
-`, publicKey)
+`, testAccHCLString(publicKey))
 }
