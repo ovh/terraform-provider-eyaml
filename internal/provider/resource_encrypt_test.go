@@ -34,6 +34,9 @@ func TestAccEncryptedDataResource_data(t *testing.T) {
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, firstExpectedValue),
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(firstExpectedValue)),
 				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectSensitiveValue("eyaml_encrypt.test", tfjsonpath.New("data")),
+				},
 			},
 			{
 				Config: testAccEncryptedDataResourceConfig(publicKey, secondExpectedValue),

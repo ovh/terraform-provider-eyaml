@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccExampleDataSource(t *testing.T) {
@@ -29,6 +31,10 @@ func TestAccExampleDataSource(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.eyaml_decrypt.test", "decrypted_data", "this-value-will-be-encrypted"),
 				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectSensitiveValue("data.eyaml_decrypt.test", tfjsonpath.New("private_key")),
+					statecheck.ExpectSensitiveValue("data.eyaml_decrypt.test", tfjsonpath.New("decrypted_data")),
+				},
 			},
 		},
 	})
