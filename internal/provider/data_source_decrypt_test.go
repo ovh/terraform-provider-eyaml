@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -96,4 +97,60 @@ EOT
 	data = eyaml_encrypt.test.encrypted_data
 }
 `, publicKey, privateKey, publicKey)
+}
+
+func TestAccDecryptDataSource_invalidEnvelope(t *testing.T) {
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccDecryptDataSourceDataConfig(privateKey, publicKey, "not-an-encrypted-value"),
+				ExpectError: regexp.MustCompile(`encryption envelope`),
+			},
+		},
+	})
+}
+
+func TestAccDecryptDataSource_wrongKeyPair(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	otherPublicKey, otherPrivateKey := testGenerateKeyPair(t)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccDecryptDataSourceWrongKeyPairConfig(publicKey, otherPrivateKey, otherPublicKey),
+				ExpectError: regexp.MustCompile(`Unable to decrypt data`),
+			},
+		},
+	})
+}
+
+func testAccDecryptDataSourceDataConfig(privateKey, publicKey, data string) string {
+	return fmt.Sprintf(`
+data "eyaml_decrypt" "test" {
+	private_key = %[1]q
+	public_key  = %[2]q
+	data        = %[3]q
+}
+`, privateKey, publicKey, data)
+}
+
+func testAccDecryptDataSourceWrongKeyPairConfig(encryptPublicKey, decryptPrivateKey, decryptPublicKey string) string {
+	return fmt.Sprintf(`
+resource "eyaml_encrypt" "test" {
+	data       = "this-value-cannot-be-decrypted-with-another-key"
+	public_key = %[1]q
+}
+
+data "eyaml_decrypt" "test" {
+	private_key = %[2]q
+	public_key  = %[3]q
+	data        = eyaml_encrypt.test.encrypted_data
+}
+`, encryptPublicKey, decryptPrivateKey, decryptPublicKey)
 }

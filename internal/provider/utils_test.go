@@ -2,11 +2,15 @@ package provider
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEncryption(t *testing.T) {
@@ -108,4 +112,20 @@ func TestEncryption_emptyCertificate(t *testing.T) {
 	if want := "public_key: no certificate found"; err == nil || err.Error() != want {
 		t.Fatalf("expected error %q, got: %v", want, err)
 	}
+}
+
+func testGenerateKeyPair(t *testing.T) (publicKey, privateKey string) {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), NotAfter: time.Now().Add(time.Hour)}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+	privateKey = string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
+	return publicKey, privateKey
 }
