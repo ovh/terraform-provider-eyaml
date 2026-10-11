@@ -63,7 +63,7 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, firstExpectedValue),
-					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(firstExpectedValue)),
+					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_reference"),
 				),
 			},
 			{
@@ -77,7 +77,7 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, secondExpectedValue),
-					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(secondExpectedValue)),
+					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_reference"),
 				),
 			},
 		},

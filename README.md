@@ -15,6 +15,8 @@ The `eyaml_encrypt` resource now supports two mutually exclusive ways to provide
 
 When using `data_wo`, update `data_wo_version` whenever the plaintext changes so Terraform can detect the replacement.
 
+When you use `data_wo`, `data_wo_reference` is null. An unsalted hash of a secret in state lets anyone with state access guess weak secrets. The `data_wo_reference` attribute is deprecated. Use `data_wo_version` to track changes to `data_wo`.
+
 The `data_wo` attribute uses Terraform write-only schema support, which requires Terraform 1.11 or later. The legacy `data` attribute remains available on older supported Terraform versions.
 
 Example using the write-only workflow:

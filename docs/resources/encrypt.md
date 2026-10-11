@@ -58,6 +58,6 @@ EOT
 
 ### Read-Only
 
-- `data_wo_reference` (String) SHA256 hash of the value passed in `data` or `data_wo`. Can be used to detect changes to the write-only value.
+- `data_wo_reference` (String, Deprecated) SHA256 hash of the value passed in `data`. Null when `data_wo` is used, because an unsalted hash in state lets anyone with state access guess low-entropy secrets.
 - `encrypted_data` (String) Encrypted data.
 - `id` (String) ID of the encrypted data.
