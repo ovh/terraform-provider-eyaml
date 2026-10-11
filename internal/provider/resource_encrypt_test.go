@@ -143,6 +143,26 @@ func TestAccEncryptedDataResource_blockUnsetToFalseAndBack(t *testing.T) {
 	})
 }
 
+func TestAccEncryptedDataResource_importUnsupported(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, "this-value-cannot-be-imported"),
+			},
+			{
+				ResourceName:  "eyaml_encrypt.test",
+				ImportState:   true,
+				ImportStateId: "1",
+				ExpectError:   regexp.MustCompile(`Resource Import Not Implemented`),
+			},
+		},
+	})
+}
+
 func TestAccEncryptedDataResource_invalidConfig(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 

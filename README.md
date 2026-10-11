@@ -33,6 +33,8 @@ EOT
 }
 ```
 
+The `eyaml_encrypt` resource does not support `terraform import`, because it has no remote object to import. To manage an existing value, declare the resource. Terraform then encrypts the value again.
+
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.9
