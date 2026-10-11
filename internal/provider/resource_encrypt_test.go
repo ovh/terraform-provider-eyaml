@@ -9,7 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 func TestAccEncryptedDataResource_data(t *testing.T) {
@@ -104,6 +107,37 @@ func TestAccEncryptedDataResource_block(t *testing.T) {
 					resource.TestMatchResourceAttr("eyaml_encrypt.test", "encrypted_data", regexp.MustCompile(`\AENC\[PKCS7,[a-zA-Z0-9+/=]+\]\z`)),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue),
 				),
+			},
+		},
+	})
+}
+
+func TestAccEncryptedDataResource_blockUnsetToFalseAndBack(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	expectedValue := "this-value-will-not-be-re-encrypted"
+	sameEncryptedData := statecheck.CompareValue(compare.ValuesSame())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+				ConfigStateChecks: []statecheck.StateCheck{
+					sameEncryptedData.AddStateValue("eyaml_encrypt.test", tfjsonpath.New("encrypted_data")),
+				},
+			},
+			{
+				Config: testAccEncryptedDataResourceBlockConfig(publicKey, expectedValue, false),
+				ConfigStateChecks: []statecheck.StateCheck{
+					sameEncryptedData.AddStateValue("eyaml_encrypt.test", tfjsonpath.New("encrypted_data")),
+				},
+			},
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+				ConfigStateChecks: []statecheck.StateCheck{
+					sameEncryptedData.AddStateValue("eyaml_encrypt.test", tfjsonpath.New("encrypted_data")),
+				},
 			},
 		},
 	})

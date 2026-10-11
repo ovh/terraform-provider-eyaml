@@ -80,6 +80,9 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 			"data_wo_reference": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "SHA256 hash of the value passed in `data` or `data_wo`. Can be used to detect changes to the write-only value.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"block": schema.BoolAttribute{
 				MarkdownDescription: "Wrap `encrypted_data` on several lines instead of a single one, as `eyaml encrypt -o block` does.",
@@ -97,10 +100,16 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 			"encrypted_data": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Encrypted data.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "ID of the encrypted data.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
