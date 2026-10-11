@@ -6,6 +6,8 @@ Terraform provider for manipulating encrypted data using [eyaml](https://github.
 
 This provider only supports PKCS7 as encryption method.
 
+Decryption accepts RSA private keys in PKCS#1 (`RSA PRIVATE KEY`) or PKCS#8 (`PRIVATE KEY`) PEM format. The public key is a PEM-encoded certificate.
+
 ## Encrypt Resource Input Modes
 
 The `eyaml_encrypt` resource now supports two mutually exclusive ways to provide plaintext:

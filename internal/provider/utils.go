@@ -42,26 +42,28 @@ func getPrivateKey(key string) (*rsa.PrivateKey, error) {
 		return nil, errors.New("invalid PEM block")
 	}
 
-	var (
-		privateKey *rsa.PrivateKey
-		err        error
-	)
 	switch block.Type {
 	case "RSA PRIVATE KEY":
-		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		privateKey, ok := key.(*rsa.PrivateKey)
+		if !ok {
+			return nil, errors.New("not an RSA key")
+		}
+		return privateKey, nil
 	default:
-		return nil, errors.New("unknown key type")
+		return nil, fmt.Errorf("unknown key type %q", block.Type)
 	}
-	if err != nil {
-		return nil, err
-	}
-	return privateKey, nil
 }
 
 func encrypt(value, key string) (string, error) {
 	certificates, err := getKeyCertificates(key)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("public_key: %w", err)
 	}
 
 	encryptedData, err := pkcs7.Encrypt([]byte(value), certificates)
@@ -85,12 +87,12 @@ func encrypt(value, key string) (string, error) {
 func decrypt(value, privateKeyRaw, publicKey string) (string, error) {
 	privateKey, err := getPrivateKey(privateKeyRaw)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("private_key: %w", err)
 	}
 
 	certificates, err := getKeyCertificates(publicKey)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("public_key: %w", err)
 	}
 
 	decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(value))
