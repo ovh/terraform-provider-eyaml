@@ -102,6 +102,37 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 	})
 }
 
+func TestAccEncryptedDataResource_dataWOReferenceUpgrade(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	config := testAccEncryptedDataResourceWriteOnlyConfig(publicKey, "this-value-was-hashed-by-an-older-release", "1")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() { testAccPreCheck(t) },
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_11_0),
+		},
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"eyaml": {Source: "ovh/eyaml", VersionConstraint: "0.1.8"},
+				},
+				Config: config,
+				Check:  resource.TestCheckResourceAttrSet("eyaml_encrypt.test", "data_wo_reference"),
+			},
+			{
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				Config:                   config,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				Check: resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_reference"),
+			},
+		},
+	})
+}
+
 func TestAccEncryptedDataResource_block(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 	expectedValue := "this-value-will-be-encrypted-as-a-block"
