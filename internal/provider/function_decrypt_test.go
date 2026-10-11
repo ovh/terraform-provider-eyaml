@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"testing"
 
@@ -10,17 +9,8 @@ import (
 )
 
 func TestAccDecryptFunction(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -35,17 +25,8 @@ func TestAccDecryptFunction(t *testing.T) {
 }
 
 func TestAccDecryptFunction_block(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -60,17 +41,8 @@ func TestAccDecryptFunction_block(t *testing.T) {
 }
 
 func TestAccDecryptFunction_InvalidEnvelope(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -85,7 +57,7 @@ func TestAccDecryptFunction_InvalidEnvelope(t *testing.T) {
 func TestAccDecryptFunction_emptyCertificate(t *testing.T) {
 	_, privateKey := testAccEncryptedDataResourceKeys(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{

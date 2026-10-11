@@ -26,7 +26,7 @@ func TestAccDecryptEphemeralResource(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 	expectedValue := "this-value-will-be-decrypted-ephemerally"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_10_0),
 		},
@@ -46,7 +46,7 @@ func TestAccDecryptEphemeralResource(t *testing.T) {
 func TestAccDecryptEphemeralResource_invalidEnvelope(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_10_0),
 		},

@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"testing"
 
@@ -11,24 +10,15 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
-func TestAccExampleDataSource(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+func TestAccDecryptDataSource(t *testing.T) {
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Read testing
 			{
-				Config: testAccExampleDataSourceConfig(privateKey, publicKey),
+				Config: testAccDecryptDataSourceConfig(privateKey, publicKey),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.eyaml_decrypt.test", "decrypted_data", "this-value-will-be-encrypted"),
 				),
@@ -41,23 +31,14 @@ func TestAccExampleDataSource(t *testing.T) {
 	})
 }
 
-func TestAccExampleDataSource_block(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+func TestAccDecryptDataSource_block(t *testing.T) {
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccExampleDataSourceBlockConfig(privateKey, publicKey),
+				Config: testAccDecryptDataSourceBlockConfig(privateKey, publicKey),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.eyaml_decrypt.test", "decrypted_data", "this-value-will-be-encrypted"),
 				),
@@ -66,7 +47,7 @@ func TestAccExampleDataSource_block(t *testing.T) {
 	})
 }
 
-func testAccExampleDataSourceConfig(privateKey, publicKey string) string {
+func testAccDecryptDataSourceConfig(privateKey, publicKey string) string {
 	return fmt.Sprintf(`
 data "eyaml_decrypt" "test" {
 	private_key = %[1]s
@@ -76,7 +57,7 @@ data "eyaml_decrypt" "test" {
 `, testAccHCLString(privateKey), testAccHCLString(publicKey))
 }
 
-func testAccExampleDataSourceBlockConfig(privateKey, publicKey string) string {
+func testAccDecryptDataSourceBlockConfig(privateKey, publicKey string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
 	data       = "this-value-will-be-encrypted"
@@ -95,7 +76,7 @@ data "eyaml_decrypt" "test" {
 func TestAccDecryptDataSource_invalidEnvelope(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -111,7 +92,7 @@ func TestAccDecryptDataSource_wrongKeyPair(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 	otherPublicKey, otherPrivateKey := testGenerateKeyPair(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{

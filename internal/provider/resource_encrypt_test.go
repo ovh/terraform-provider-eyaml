@@ -22,7 +22,7 @@ func TestAccEncryptedDataResource_data(t *testing.T) {
 	firstExpectedValue := "this-value-will-be-encrypted"
 	secondExpectedValue := "this-value-will-be-encrypted-too"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -61,7 +61,7 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 	firstExpectedValue := "this-write-only-value-will-be-encrypted"
 	secondExpectedValue := "this-write-only-value-will-be-encrypted-too"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_11_0),
 		},
@@ -106,7 +106,7 @@ func TestAccEncryptedDataResource_dataWOReferenceUpgrade(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 	config := testAccEncryptedDataResourceWriteOnlyConfig(publicKey, "this-value-was-hashed-by-an-older-release", "1")
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() { testAccPreCheck(t) },
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_11_0),
@@ -137,7 +137,7 @@ func TestAccEncryptedDataResource_specialCharacters(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 	expectedValue := "line one\n\"quoted\" \\ ${not_interpolated} %{ok}\nunicode: été 日本\n"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -153,7 +153,7 @@ func TestAccEncryptedDataResource_block(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 	expectedValue := "this-value-will-be-encrypted-as-a-block"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -187,7 +187,7 @@ func TestAccEncryptedDataResource_publicKeyRotation(t *testing.T) {
 	newPublicKey, newPrivateKey := testGenerateKeyPair(t)
 	expectedValue := "this-value-will-be-encrypted-with-a-new-key"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -212,7 +212,7 @@ func TestAccEncryptedDataResource_blockUnsetToFalseAndBack(t *testing.T) {
 	expectedValue := "this-value-will-not-be-re-encrypted"
 	sameEncryptedData := statecheck.CompareValue(compare.ValuesSame())
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -241,7 +241,7 @@ func TestAccEncryptedDataResource_blockUnsetToFalseAndBack(t *testing.T) {
 func TestAccEncryptedDataResource_importUnsupported(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -261,7 +261,7 @@ func TestAccEncryptedDataResource_importUnsupported(t *testing.T) {
 func TestAccEncryptedDataResource_invalidConfig(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_11_0),
 		},
