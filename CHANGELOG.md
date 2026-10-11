@@ -17,6 +17,7 @@ ENHANCEMENTS:
 BUG FIXES:
 
 * resource/eyaml_encrypt: An in-place update, for example adding `block = false`, no longer fails with `Provider returned invalid result object after apply`.
+* A `public_key` with an empty `CERTIFICATE` block no longer crashes the provider. The provider returns `public_key: no certificate found`.
 
 ## 0.1.0 
 
