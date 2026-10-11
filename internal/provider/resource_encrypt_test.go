@@ -9,7 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-testing/compare"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
+	"github.com/hashicorp/terraform-plugin-testing/statecheck"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 func TestAccEncryptedDataResource_data(t *testing.T) {
@@ -17,7 +22,7 @@ func TestAccEncryptedDataResource_data(t *testing.T) {
 	firstExpectedValue := "this-value-will-be-encrypted"
 	secondExpectedValue := "this-value-will-be-encrypted-too"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -31,9 +36,17 @@ func TestAccEncryptedDataResource_data(t *testing.T) {
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, firstExpectedValue),
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(firstExpectedValue)),
 				),
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectSensitiveValue("eyaml_encrypt.test", tfjsonpath.New("data")),
+				},
 			},
 			{
 				Config: testAccEncryptedDataResourceConfig(publicKey, secondExpectedValue),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, secondExpectedValue),
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(secondExpectedValue)),
@@ -48,7 +61,10 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 	firstExpectedValue := "this-write-only-value-will-be-encrypted"
 	secondExpectedValue := "this-write-only-value-will-be-encrypted-too"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_11_0),
+		},
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -60,7 +76,7 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, firstExpectedValue),
-					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(firstExpectedValue)),
+					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_reference"),
 				),
 			},
 			{
@@ -69,13 +85,65 @@ func TestAccEncryptedDataResource_dataWO(t *testing.T) {
 			},
 			{
 				Config: testAccEncryptedDataResourceWriteOnlyConfig(publicKey, secondExpectedValue, "2"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_version", "2"),
 					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data"),
 					testAccEncryptedDataResourceCheckWriteOnlyNotPersisted(),
 					testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, secondExpectedValue),
-					resource.TestCheckResourceAttr("eyaml_encrypt.test", "data_wo_reference", testAccDataHash(secondExpectedValue)),
+					resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_reference"),
 				),
+			},
+		},
+	})
+}
+
+func TestAccEncryptedDataResource_dataWOReferenceUpgrade(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	config := testAccEncryptedDataResourceWriteOnlyConfig(publicKey, "this-value-was-hashed-by-an-older-release", "1")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() { testAccPreCheck(t) },
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_11_0),
+		},
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"eyaml": {Source: "ovh/eyaml", VersionConstraint: "0.1.8"},
+				},
+				Config: config,
+				Check:  resource.TestCheckResourceAttrSet("eyaml_encrypt.test", "data_wo_reference"),
+			},
+			{
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				Config:                   config,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectEmptyPlan(),
+					},
+				},
+				Check: resource.TestCheckNoResourceAttr("eyaml_encrypt.test", "data_wo_reference"),
+			},
+		},
+	})
+}
+
+func TestAccEncryptedDataResource_specialCharacters(t *testing.T) {
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	expectedValue := "line one\n\"quoted\" \\ ${not_interpolated} %{ok}\nunicode: été 日本\n"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+				Check:  testAccEncryptedDataResourceCheckEncryptedValue(privateKey, publicKey, expectedValue),
 			},
 		},
 	})
@@ -85,7 +153,7 @@ func TestAccEncryptedDataResource_block(t *testing.T) {
 	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
 	expectedValue := "this-value-will-be-encrypted-as-a-block"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -99,6 +167,11 @@ func TestAccEncryptedDataResource_block(t *testing.T) {
 			},
 			{
 				Config: testAccEncryptedDataResourceBlockConfig(publicKey, expectedValue, false),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("eyaml_encrypt.test", "block", "false"),
 					resource.TestMatchResourceAttr("eyaml_encrypt.test", "encrypted_data", regexp.MustCompile(`\AENC\[PKCS7,[a-zA-Z0-9+/=]+\]\z`)),
@@ -109,10 +182,89 @@ func TestAccEncryptedDataResource_block(t *testing.T) {
 	})
 }
 
+func TestAccEncryptedDataResource_publicKeyRotation(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	newPublicKey, newPrivateKey := testGenerateKeyPair(t)
+	expectedValue := "this-value-will-be-encrypted-with-a-new-key"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+			},
+			{
+				Config: testAccEncryptedDataResourceConfig(newPublicKey, expectedValue),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("eyaml_encrypt.test", plancheck.ResourceActionReplace),
+					},
+				},
+				Check: testAccEncryptedDataResourceCheckEncryptedValue(newPrivateKey, newPublicKey, expectedValue),
+			},
+		},
+	})
+}
+
+func TestAccEncryptedDataResource_blockUnsetToFalseAndBack(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+	expectedValue := "this-value-will-not-be-re-encrypted"
+	sameEncryptedData := statecheck.CompareValue(compare.ValuesSame())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+				ConfigStateChecks: []statecheck.StateCheck{
+					sameEncryptedData.AddStateValue("eyaml_encrypt.test", tfjsonpath.New("encrypted_data")),
+				},
+			},
+			{
+				Config: testAccEncryptedDataResourceBlockConfig(publicKey, expectedValue, false),
+				ConfigStateChecks: []statecheck.StateCheck{
+					sameEncryptedData.AddStateValue("eyaml_encrypt.test", tfjsonpath.New("encrypted_data")),
+				},
+			},
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, expectedValue),
+				ConfigStateChecks: []statecheck.StateCheck{
+					sameEncryptedData.AddStateValue("eyaml_encrypt.test", tfjsonpath.New("encrypted_data")),
+				},
+			},
+		},
+	})
+}
+
+func TestAccEncryptedDataResource_importUnsupported(t *testing.T) {
+	publicKey, _ := testAccEncryptedDataResourceKeys(t)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEncryptedDataResourceConfig(publicKey, "this-value-cannot-be-imported"),
+			},
+			{
+				ResourceName:  "eyaml_encrypt.test",
+				ImportState:   true,
+				ImportStateId: "1",
+				ExpectError:   regexp.MustCompile(`Resource Import Not Implemented`),
+			},
+		},
+	})
+}
+
 func TestAccEncryptedDataResource_invalidConfig(t *testing.T) {
 	publicKey, _ := testAccEncryptedDataResourceKeys(t)
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_11_0),
+		},
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -187,72 +339,65 @@ func testAccEncryptedDataResourceCheckWriteOnlyNotPersisted() resource.TestCheck
 func testAccEncryptedDataResourceConfig(publicKey, data string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data      = "%s"
-	public_key = <<EOT
-%sEOT
+	data       = %[2]s
+	public_key = %[1]s
 }
-`, data, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(data))
 }
 
 func testAccEncryptedDataResourceBlockConfig(publicKey, data string, block bool) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data       = "%s"
-	block      = %t
-	public_key = <<EOT
-%sEOT
+	data       = %[2]s
+	block      = %[3]t
+	public_key = %[1]s
 }
-`, data, block, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(data), block)
 }
 
 func testAccEncryptedDataResourceWriteOnlyConfig(publicKey, dataWO, dataWOVersion string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data_wo         = "%s"
-	data_wo_version = "%s"
-	public_key      = <<EOT
-%sEOT
+	data_wo         = %[2]s
+	data_wo_version = %[3]s
+	public_key      = %[1]s
 }
-`, dataWO, dataWOVersion, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(dataWO), testAccHCLString(dataWOVersion))
 }
 
 func testAccEncryptedDataResourceWriteOnlyOnlyDataConfig(publicKey, dataWO string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data_wo    = "%s"
-	public_key = <<EOT
-%sEOT
+	data_wo    = %[2]s
+	public_key = %[1]s
 }
-`, dataWO, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(dataWO))
 }
 
 func testAccEncryptedDataResourceWriteOnlyOnlyVersionConfig(publicKey, dataWOVersion string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data_wo_version = "%s"
-	public_key      = <<EOT
-%sEOT
+	data_wo_version = %[2]s
+	public_key      = %[1]s
 }
-`, dataWOVersion, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(dataWOVersion))
 }
 
 func testAccEncryptedDataResourceMixedInputConfig(publicKey, data, dataWO, dataWOVersion string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	data            = "%s"
-	data_wo         = "%s"
-	data_wo_version = "%s"
-	public_key      = <<EOT
-%sEOT
+	data            = %[2]s
+	data_wo         = %[3]s
+	data_wo_version = %[4]s
+	public_key      = %[1]s
 }
-`, data, dataWO, dataWOVersion, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(data), testAccHCLString(dataWO), testAccHCLString(dataWOVersion))
 }
 
 func testAccEncryptedDataResourceMissingInputConfig(publicKey string) string {
 	return fmt.Sprintf(`
 resource "eyaml_encrypt" "test" {
-	public_key = <<EOT
-%sEOT
+	public_key = %[1]s
 }
-`, publicKey)
+`, testAccHCLString(publicKey))
 }

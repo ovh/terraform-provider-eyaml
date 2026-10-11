@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -19,7 +18,6 @@ import (
 )
 
 var _ resource.Resource = &EncryptedDataResource{}
-var _ resource.ResourceWithImportState = &EncryptedDataResource{}
 var _ resource.ResourceWithValidateConfig = &EncryptedDataResource{}
 
 func NewEncryptedDataResource() resource.Resource {
@@ -79,7 +77,11 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 			},
 			"data_wo_reference": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "SHA256 hash of the value passed in `data` or `data_wo`. Can be used to detect changes to the write-only value.",
+				MarkdownDescription: "SHA256 hash of the value passed in `data`. Null when `data_wo` is used, because an unsalted hash in state lets anyone with state access guess low-entropy secrets.",
+				DeprecationMessage:  "Use `data_wo_version` to track changes to `data_wo`. This attribute will be removed in a future major version.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"block": schema.BoolAttribute{
 				MarkdownDescription: "Wrap `encrypted_data` on several lines instead of a single one, as `eyaml encrypt -o block` does.",
@@ -97,10 +99,16 @@ func (r *EncryptedDataResource) Schema(ctx context.Context, req resource.SchemaR
 			"encrypted_data": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Encrypted data.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"id": schema.StringAttribute{
 				MarkdownDescription: "ID of the encrypted data.",
 				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -163,6 +171,9 @@ func (r *EncryptedDataResource) Create(ctx context.Context, req resource.CreateR
 	if configData.Data.IsNull() {
 		plaintext = configData.DataWO.ValueString()
 		planData.Data = types.StringNull()
+		planData.DataWOReference = types.StringNull()
+	} else {
+		planData.DataWOReference = types.StringValue(dataHash(plaintext))
 	}
 	planData.DataWO = types.StringNull()
 
@@ -173,7 +184,6 @@ func (r *EncryptedDataResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	planData.EncryptedData = types.StringValue(formatEncryptedData(encryptedData, planData.Block.ValueBool()))
-	planData.DataWOReference = types.StringValue(dataHash(plaintext))
 	planData.Id = types.StringValue(strconv.FormatInt(time.Now().Unix(), 10))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &planData)...)
 }
@@ -185,6 +195,10 @@ func (r *EncryptedDataResource) Read(ctx context.Context, req resource.ReadReque
 
 	if resp.Diagnostics.HasError() {
 		return
+	}
+	// Older releases stored an unsalted hash of data_wo, clear it without forcing replacement.
+	if data.Data.IsNull() {
+		data.DataWOReference = types.StringNull()
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -207,8 +221,4 @@ func (r *EncryptedDataResource) Delete(ctx context.Context, req resource.DeleteR
 	if resp.Diagnostics.HasError() {
 		return
 	}
-}
-
-func (r *EncryptedDataResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

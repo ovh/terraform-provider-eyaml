@@ -2,7 +2,6 @@ package provider
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"testing"
 
@@ -10,17 +9,8 @@ import (
 )
 
 func TestAccDecryptFunction(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -35,17 +25,8 @@ func TestAccDecryptFunction(t *testing.T) {
 }
 
 func TestAccDecryptFunction_block(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -60,17 +41,8 @@ func TestAccDecryptFunction_block(t *testing.T) {
 }
 
 func TestAccDecryptFunction_InvalidEnvelope(t *testing.T) {
-	publicKeyBytes, err := os.ReadFile("testdata/keys/public_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicKey := string(publicKeyBytes)
-	privateKeyBytes, err := os.ReadFile("testdata/keys/private_key.pkcs7.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	privateKey := string(privateKeyBytes)
-	resource.Test(t, resource.TestCase{
+	publicKey, privateKey := testAccEncryptedDataResourceKeys(t)
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -82,38 +54,47 @@ func TestAccDecryptFunction_InvalidEnvelope(t *testing.T) {
 	})
 }
 
+func TestAccDecryptFunction_emptyCertificate(t *testing.T) {
+	_, privateKey := testAccEncryptedDataResourceKeys(t)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccDecryptFunctionConfig(privateKey, testEmptyCertificatePEM),
+				ExpectError: regexp.MustCompile(`public_key: no certificate found`),
+			},
+		},
+	})
+}
+
 func testAccDecryptFunctionConfig(privateKey, publicKey string) string {
 	return fmt.Sprintf(`
 output "decrypted" {
   value = provider::eyaml::decrypt(
-    <<EOT
-%s
-EOT
+    %[1]s
     ,
-    <<EOT
-%sEOT
+    %[2]s
     ,
     "ENC[PKCS7,MIIBfQYJKoZIhvcNAQcDoIIBbjCCAWoCAQAxggEfMIIBGwIBADAFMAACAQEwCwYJKoZIhvcNAQEBBIIBAJRWoo875CLTzgo3vlBaiN8SnJgXoWDyvBKx7xNRvZoboYZltHs6lGtpaHB4ykCZD6so8YNRmJOoBeDnP2lyBSWZkCv0cU1lmToEG329bRBd/P0y1rtRW44JRbGcCR/WunXETq8RwAvuGikXwkirD9SmdSuytgCEA0nhRGLwDeJnwQojbhxqy6PI4j9I5MAjt96smn+RP3KQSmbPAFSfIFLp5eGUl5qxAqli0Nl02JP+MK04sVSa7sI3XBzYjn7AeUTlryWHdQ1xuNhMV8mwGxhJzQ+obo4ptHQ9jo9+xIoUPiK8cl0wDpxDqTAvTlQ7wxT+SCiCZUnLEoQtGXQTRBYwQgYJKoZIhvcNAQcBMBEGBSsOAwIHBAhsxVuocgO2gKAiBCBO1l7bS2BXrqDHSb4jwZNKDRXRTcdRf93BTAOnUAWN8w==]"
   )
 }
-`, privateKey, publicKey)
+`, testAccHCLString(privateKey), testAccHCLString(publicKey))
 }
 
 func testAccDecryptFunctionInvalidEnvelopeConfig(privateKey, publicKey string) string {
 	return fmt.Sprintf(`
 output "decrypted" {
   value = provider::eyaml::decrypt(
-    <<EOT
-%s
-EOT
+    %[1]s
     ,
-    <<EOT
-%sEOT
+    %[2]s
     ,
     "not-an-encrypted-value"
   )
 }
-`, privateKey, publicKey)
+`, testAccHCLString(privateKey), testAccHCLString(publicKey))
 }
 
 func testAccDecryptFunctionBlockConfig(privateKey, publicKey string) string {
@@ -121,21 +102,17 @@ func testAccDecryptFunctionBlockConfig(privateKey, publicKey string) string {
 resource "eyaml_encrypt" "test" {
   data       = "this-value-will-be-encrypted"
   block      = true
-  public_key = <<EOT
-%sEOT
+  public_key = %[1]s
 }
 
 output "decrypted" {
   value = provider::eyaml::decrypt(
-    <<EOT
-%s
-EOT
+    %[2]s
     ,
-    <<EOT
-%sEOT
+    %[3]s
     ,
     eyaml_encrypt.test.encrypted_data
   )
 }
-`, publicKey, privateKey, publicKey)
+`, testAccHCLString(publicKey), testAccHCLString(privateKey), testAccHCLString(publicKey))
 }

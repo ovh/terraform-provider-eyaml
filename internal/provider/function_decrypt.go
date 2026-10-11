@@ -27,9 +27,9 @@ func (f *DecryptFunction) Definition(ctx context.Context, req function.Definitio
 		MarkdownDescription: "Decrypts data encrypted with eyaml using PKCS7. " +
 			"The data must be wrapped in the `ENC[PKCS7,...]` envelope. " +
 			"This is equivalent to the `eyaml decrypt` command.\n\n" +
-			"~> The `private_key` parameter value will be stored in plaintext " +
-			"in the Terraform state. Use Terraform's built-in `sensitive` function " +
-			"or `sensitive` output attribute to prevent the value from being displayed.",
+			"~> The decrypted result is stored in plaintext in the Terraform state " +
+			"when you assign it to a resource attribute or an output. To keep it out " +
+			"of the state, use the `eyaml_decrypt` ephemeral resource instead.",
 		Parameters: []function.Parameter{
 			function.StringParameter{
 				Name:                "private_key",
